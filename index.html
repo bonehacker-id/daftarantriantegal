@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Lacak antrian dan ringkasan status pasien Bone Hacker untuk cabang Tegal." />
+  <link rel="icon" href="https://placehold.co/32x32/007AFF/FFFFFF?text=BH" type="image/png">
+
+  <title>Antrian Bone Hacker - Tegal</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <link rel="preconnect" href="https://rsms.me/">
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+  
+  <style>
+    :root {
+      --bg-main: #f5f5f7;
+      --bg-card: #ffffff;
+      --bg-subtle: #f0f0f2;
+      --text-primary: #1d1d1f;
+      --text-secondary: #6e6e73;
+      --border-color: rgba(0, 0, 0, 0.1);
+      --skeleton-bg: #dcdce0;
+
+      --status-waiting: #ff9500;
+      --status-in-treatment: #007aff;
+      --status-completed: #34c759;
+      
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    html.dark {
+      --bg-main: #000000;
+      --bg-card: #1c1c1e;
+      --bg-subtle: #2c2c2e;
+      --text-primary: #f5f5f7;
+      --text-secondary: #8e8e93;
+      --border-color: rgba(255, 255, 255, 0.15);
+      --skeleton-bg: #3a3a3c;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      transition: background-color 0.3s, color 0.3s;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .status-waiting { color: var(--status-waiting); }
+    .status-in-treatment { color: var(--status-in-treatment); }
+    .status-completed { color: var(--status-completed); }
+    
+    .skeleton {
+      background-color: var(--skeleton-bg);
+      border-radius: 0.5rem;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body class="min-h-screen text-sm">
+  <div class="container mx-auto p-4 max-w-2xl">
+    
+    <header class="mb-6 text-center">
+      <h1 class="text-4xl font-bold" style="color: var(--text-primary);">Antrian Pasien</h1>
+      <p class="mt-2 text-lg" style="color: var(--text-secondary);">Bone Hacker Live Status - Cabang Tegal</p>
+    </header>
+
+    <section class="mb-6 p-5 rounded-2xl shadow-sm text-sm" style="background-color: var(--bg-card); border: 1px solid var(--border-color);">
+      <h3 class="font-bold text-base mb-3" style="color: var(--text-primary);">Informasi Penting</h3>
+      <ul class="list-disc list-inside space-y-2" style="color: var(--text-secondary);">
+        <li>Periksa nomor urut dan status pendaftaran pasien terbaru.</li>
+        <li>Rata-rata durasi terapi untuk setiap pasien adalah 15–20 menit.</li>
+        <li>Pendaftaran dilakukan langsung di lokasi terapi sesuai urutan kedatangan.</li>
+      </ul>
+    </section>
+
+    <section id="summaryContainer" class="mb-6 rounded-2xl shadow-sm p-5" style="background-color: var(--bg-card); border: 1px solid var(--border-color);"></section>
+
+    <main id="patientListContainer" class="rounded-2xl shadow-sm p-5" style="background-color: var(--bg-card); border: 1px solid var(--border-color); min-height: 150px;"></main>
+
+    <footer class="text-center mt-8 text-xs" style="color: var(--text-secondary);">
+      <p>Terakhir diperbarui: <span id="lastUpdated" class="font-semibold">-</span></p>
+    </footer>
+  </div>
+
+  <script>
+    const REFRESH_INTERVAL = 90000;
+    const STATUS = { WAITING: 'waiting', IN_TREATMENT: 'in-treatment', COMPLETED: 'completed' };
+
+    const BRANCH_CONFIG = {
+      name: "Tegal",
+      url: "https://script.google.com/macros/s/AKfycbxubuyrPeNgdFfaePAvtKU4GFX8pn0pbsXSRgY7YE2esaCUQg7KUYkHS_pp0NkTgT9w/exec"
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      setupDarkMode();
+      renderPlaceholders();
+      fetchData();
+      setInterval(fetchData, REFRESH_INTERVAL);
+    }
+
+    async function fetchData() {
+      try {
+        const response = await fetch(BRANCH_CONFIG.url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateUI(data);
+      } catch (error) {
+        console.error(`Gagal memuat data untuk ${BRANCH_CONFIG.name}:`, error);
+        updateUI(null, true);
+      }
+      const now = new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', timeZone: "Asia/Jakarta" });
+      document.getElementById('lastUpdated').textContent = `${now} WIB`;
+    }
+
+    function renderPlaceholders() {
+      document.getElementById('summaryContainer').innerHTML = createSummaryHTML(null, true);
+      document.getElementById('patientListContainer').innerHTML = `<p style="color: var(--text-secondary);">Memuat daftar antrian...</p>`;
+    }
+
+    function updateUI(patients, isError = false) {
+      const summaryContainer = document.getElementById('summaryContainer');
+      const listContainer = document.getElementById('patientListContainer');
+
+      if (isError) {
+        summaryContainer.innerHTML = `<h3 class="text-base font-semibold mb-3">Ringkasan Antrian</h3><p class="text-red-500 font-semibold">Gagal memuat ringkasan.</p>`;
+        listContainer.innerHTML = `<p class="text-red-500 font-semibold">Gagal memuat daftar pasien.</p>`;
+        return;
+      }
+      
+      const safePatients = patients || [];
+      const waiting = safePatients.filter(p => p.status === STATUS.WAITING).length;
+      const treating = safePatients.filter(p => p.status === STATUS.IN_TREATMENT).length;
+      const completed = safePatients.filter(p => p.status === STATUS.COMPLETED).length;
+      
+      summaryContainer.innerHTML = createSummaryHTML({ waiting, treating, completed });
+
+      if (safePatients.length === 0) {
+        listContainer.innerHTML = `<p class="text-center italic" style="color: var(--text-secondary);">Belum ada antrian untuk hari ini.</p>`;
+      } else {
+        listContainer.innerHTML = createPatientTable(safePatients);
+      }
+    }
+
+    function createSummaryHTML(stats, isLoading = false) {
+      let content;
+      if (isLoading) {
+        content = `
+          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
+          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-10 mx-auto mt-2"></div></div>
+          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
+        `;
+      } else {
+        content = `
+          <div class="pt-2" style="border-top: 3px solid var(--status-waiting);">
+            <span class="text-3xl font-bold status-waiting">${stats.waiting}</span>
+            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Menunggu</p>
+          </div>
+          <div class="pt-2" style="border-top: 3px solid var(--status-in-treatment);">
+            <span class="text-3xl font-bold status-in-treatment">${stats.treating}</span>
+            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Terapi</p>
+          </div>
+          <div class="pt-2" style="border-top: 3px solid var(--status-completed);">
+            <span class="text-3xl font-bold status-completed">${stats.completed}</span>
+            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Selesai</p>
+          </div>
+        `;
+      }
+      return `
+        <h3 class="text-base font-semibold mb-4 text-center sm:text-left" style="color: var(--text-primary);">Ringkasan Antrian</h3>
+        <div class="grid grid-cols-3 gap-4 text-center">${content}</div>
+      `;
+    }
+
+    function createPatientTable(patients) {
+      const sorted = [...patients].sort((a, b) => {
+        const numA = a.waitingNumber ? String(a.waitingNumber) : '';
+        const numB = b.waitingNumber ? String(b.waitingNumber) : '';
+        return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+      });
+
+      return `
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-left text-xs sm:text-sm">
+            <thead style="color: var(--text-secondary);">
+              <tr class="border-b" style="border-color: var(--border-color);">
+                <th class="p-2 pl-0 font-medium whitespace-nowrap">No.</th>
+                <th class="p-2 font-medium">Nama Pasien</th>
+                <th class="p-2 font-medium">Status</th>
+                <th class="p-2 pr-0 font-medium text-center whitespace-nowrap">Posisi Antrian</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sorted.map(p => `
+                <tr class="border-b last:border-0" style="border-color: var(--bg-subtle);">
+                  <td class="p-2 pl-0 font-semibold">${sanitize(p.waitingNumber)}</td>
+                  <td class="p-2">${sanitize(p.patientName)}</td>
+                  <td class="p-2 font-semibold status-${p.status}">${translateStatus(p.status)}</td>
+                  <td class="p-2 pr-0 text-center font-semibold">${p.status === STATUS.WAITING ? sanitize(p.queuePosition) : '-'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function setupDarkMode() {
+      const hour = new Date().getHours();
+      const isNight = hour >= 18 || hour < 6;
+      if (isNight) document.documentElement.classList.add('dark');
+    }
+
+    function translateStatus(status) {
+      const map = { 
+        waiting: 'Menunggu', 
+        'in-treatment': 'Terapi', 
+        completed: 'Selesai' 
+      };
+      return map[status] || status;
+    }
+
+    function sanitize(str) {
+      if (!str && str !== 0) return '';
+      const temp = document.createElement('div');
+      temp.textContent = String(str);
+      return temp.innerHTML;
+    }
+  </script>
+</body>
+</html>
