@@ -53,14 +53,53 @@
     .status-completed { color: var(--status-completed); }
     
     .skeleton {
-      background-color: var(--skeleton-bg);
-      border-radius: 0.5rem;
-      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        background-color: var(--skeleton-bg);
+        border-radius: 0.5rem;
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    /* --- CUSTOM RULES STYLES --- */
+    .bg-red-600-custom { background-color: #dc2626 !important; color: #ffffff !important; }
+    .text-yellow-200-custom { color: #fef08a !important; }
+    
+    .break-separator {
+        background-color: #450a0a !important;
+        color: #ffffff !important;
+        text-align: center;
+        font-weight: 800;
+        letter-spacing: 0.15em;
+        font-size: 0.85rem;
+    }
+
+    @keyframes fade-in-out {
+        0%, 100% { opacity: 0.2; }
+        50% { opacity: 1; }
+    }
+    
+    .animate-fade {
+        animation: fade-in-out 2s ease-in-out infinite;
+    }
+
+    .badge-istirahat-wrapper {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .badge-istirahat {
+        background-color: #dc2626;
+        color: white;
+        padding: 0.5rem 1.5rem;
+        border-radius: 999px;
+        font-size: 1rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
     }
   </style>
 </head>
@@ -68,17 +107,20 @@
   <div class="container mx-auto p-4 max-w-2xl">
     
     <header class="mb-6 text-center">
-      <h1 class="text-4xl font-bold" style="color: var(--text-primary);">Antrian Pasien</h1>
-      <p class="mt-2 text-lg" style="color: var(--text-secondary);">Bone Hacker Live Status - Cabang Tegal</p>
+        <h1 class="text-4xl font-bold" style="color: var(--text-primary);">Antrian Pasien</h1>
+        <p class="mt-2 text-lg" style="color: var(--text-secondary);">Bone Hacker Live Status - Cabang Tegal</p>
     </header>
 
+    <!-- Kontainer Badge Istirahat -->
+    <div id="restNoticeContainer" class="badge-istirahat-wrapper hidden"></div>
+
     <section class="mb-6 p-5 rounded-2xl shadow-sm text-sm" style="background-color: var(--bg-card); border: 1px solid var(--border-color);">
-      <h3 class="font-bold text-base mb-3" style="color: var(--text-primary);">Informasi Penting</h3>
-      <ul class="list-disc list-inside space-y-2" style="color: var(--text-secondary);">
-        <li>Periksa nomor urut dan status pendaftaran pasien terbaru.</li>
-        <li>Rata-rata durasi terapi untuk setiap pasien adalah 15–20 menit.</li>
-        <li>Pendaftaran dilakukan langsung di lokasi terapi sesuai urutan kedatangan.</li>
-      </ul>
+        <h3 class="font-bold text-base mb-3" style="color: var(--text-primary);">Informasi Penting</h3>
+        <ul class="list-disc list-inside space-y-2" style="color: var(--text-secondary);">
+            <li>Periksa nomor urut dan status pendaftaran pasien terbaru.</li>
+            <li>Rata-rata durasi terapi untuk setiap pasien adalah 15–20 menit.</li>
+            <li>Pendaftaran dilakukan langsung di lokasi terapi sesuai urutan kedatangan.</li>
+        </ul>
     </section>
 
     <section id="summaryContainer" class="mb-6 rounded-2xl shadow-sm p-5" style="background-color: var(--bg-card); border: 1px solid var(--border-color);"></section>
@@ -91,149 +133,187 @@
   </div>
 
   <script>
-    const REFRESH_INTERVAL = 90000;
+    // --- KONFIGURASI ---
+    const REFRESH_INTERVAL = 90000; // 90 detik
     const STATUS = { WAITING: 'waiting', IN_TREATMENT: 'in-treatment', COMPLETED: 'completed' };
-
     const BRANCH_CONFIG = {
-      name: "Tegal",
-      url: "https://script.google.com/macros/s/AKfycbxubuyrPeNgdFfaePAvtKU4GFX8pn0pbsXSRgY7YE2esaCUQg7KUYkHS_pp0NkTgT9w/exec"
+      name: "Tegal", 
+      url: "https://script.google.com/macros/s/AKfycbxubuyrPeNgdFfaePAvtKU4GFX8pn0pbsXSRgY7YE2esaCUQg7KUYkHS_pp0NkTgT9w/exec" 
     };
 
+    // --- FUNGSI UTAMA ---
     document.addEventListener('DOMContentLoaded', init);
 
     function init() {
-      setupDarkMode();
-      renderPlaceholders();
-      fetchData();
-      setInterval(fetchData, REFRESH_INTERVAL);
+        setupDarkMode();
+        renderPlaceholders();
+        fetchData();
+        setInterval(fetchData, REFRESH_INTERVAL);
     }
 
     async function fetchData() {
-      try {
-        const response = await fetch(BRANCH_CONFIG.url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        updateUI(data);
-      } catch (error) {
-        console.error(`Gagal memuat data untuk ${BRANCH_CONFIG.name}:`, error);
-        updateUI(null, true);
-      }
-      const now = new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', timeZone: "Asia/Jakarta" });
-      document.getElementById('lastUpdated').textContent = `${now} WIB`;
+        try {
+            const response = await fetch(BRANCH_CONFIG.url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            updateUI(data);
+        } catch (error) {
+            console.error(`Gagal memuat data untuk ${BRANCH_CONFIG.name}:`, error);
+            updateUI(null, true);
+        }
+        const now = new Date().toLocaleTimeString("id-ID", { hour: '2-digit', minute: '2-digit', timeZone: "Asia/Jakarta" });
+        document.getElementById('lastUpdated').textContent = `${now} WIB`;
     }
 
+    // --- RENDER & UPDATE UI ---
     function renderPlaceholders() {
-      document.getElementById('summaryContainer').innerHTML = createSummaryHTML(null, true);
-      document.getElementById('patientListContainer').innerHTML = `<p style="color: var(--text-secondary);">Memuat daftar antrian...</p>`;
+        document.getElementById('summaryContainer').innerHTML = createSummaryHTML(null, true); 
+        document.getElementById('patientListContainer').innerHTML = `<p style="color: var(--text-secondary);">Memuat daftar antrian...</p>`;
     }
 
     function updateUI(patients, isError = false) {
-      const summaryContainer = document.getElementById('summaryContainer');
-      const listContainer = document.getElementById('patientListContainer');
+        const summaryContainer = document.getElementById('summaryContainer');
+        const listContainer = document.getElementById('patientListContainer');
+        const restNoticeContainer = document.getElementById('restNoticeContainer');
 
-      if (isError) {
-        summaryContainer.innerHTML = `<h3 class="text-base font-semibold mb-3">Ringkasan Antrian</h3><p class="text-red-500 font-semibold">Gagal memuat ringkasan.</p>`;
-        listContainer.innerHTML = `<p class="text-red-500 font-semibold">Gagal memuat daftar pasien.</p>`;
-        return;
-      }
-      
-      const safePatients = patients || [];
-      const waiting = safePatients.filter(p => p.status === STATUS.WAITING).length;
-      const treating = safePatients.filter(p => p.status === STATUS.IN_TREATMENT).length;
-      const completed = safePatients.filter(p => p.status === STATUS.COMPLETED).length;
-      
-      summaryContainer.innerHTML = createSummaryHTML({ waiting, treating, completed });
+        if (isError) {
+            summaryContainer.innerHTML = `<h3 class="text-base font-semibold mb-3">Ringkasan Antrian</h3><p class="text-red-500 font-semibold">Gagal memuat ringkasan.</p>`;
+            listContainer.innerHTML = `<p class="text-red-500 font-semibold">Gagal memuat daftar pasien.</p>`;
+            return;
+        }
+        
+        const safePatients = patients || [];
 
-      if (safePatients.length === 0) {
-        listContainer.innerHTML = `<p class="text-center italic" style="color: var(--text-secondary);">Belum ada antrian untuk hari ini.</p>`;
-      } else {
-        listContainer.innerHTML = createPatientTable(safePatients);
-      }
+        // 1. LOGIKA ISTIRAHAT
+        const restEntry = safePatients.find(p => p.patientName.toLowerCase().includes('istirahat'));
+        
+        if (restEntry) {
+            let timeStr = restEntry.patientName.toLowerCase().replace('istirahat', '').replace(/[()]/g, '').trim();
+            let displayStr = timeStr ? `ISTIRAHAT S.D. ${timeStr}` : 'ISTIRAHAT';
+            restNoticeContainer.innerHTML = `<span class="badge-istirahat animate-fade">${displayStr}</span>`;
+            restNoticeContainer.classList.remove('hidden');
+        } else {
+            restNoticeContainer.innerHTML = '';
+            restNoticeContainer.classList.add('hidden');
+        }
+
+        // 2. FILTER PASIEN AKTIF (EXCLUDE INFO ISTIRAHAT)
+        const activePatients = safePatients.filter(p => !p.patientName.toLowerCase().includes('istirahat'));
+
+        const waiting = activePatients.filter(p => p.status === STATUS.WAITING).length;
+        const treating = activePatients.filter(p => p.status === STATUS.IN_TREATMENT).length;
+        const completed = activePatients.filter(p => p.status === STATUS.COMPLETED).length;
+        
+        summaryContainer.innerHTML = createSummaryHTML({ waiting, treating, completed });
+
+        if (activePatients.length === 0) {
+            listContainer.innerHTML = `<p class="text-center italic" style="color: var(--text-secondary);">Belum ada antrian untuk hari ini.</p>`;
+        } else {
+            listContainer.innerHTML = createPatientTable(activePatients);
+        }
     }
 
     function createSummaryHTML(stats, isLoading = false) {
-      let content;
-      if (isLoading) {
-        content = `
-          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
-          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-10 mx-auto mt-2"></div></div>
-          <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
+        let content;
+        if (isLoading) {
+            content = `
+                <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
+                <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-10 mx-auto mt-2"></div></div>
+                <div><div class="skeleton h-8 w-10 mx-auto"></div><div class="skeleton h-3 w-12 mx-auto mt-2"></div></div>
+            `;
+        } else {
+            content = `
+                <div class="pt-2" style="border-top: 3px solid var(--status-waiting);">
+                    <span class="text-3xl font-bold status-waiting">${stats.waiting}</span>
+                    <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Menunggu</p>
+                </div>
+                <div class="pt-2" style="border-top: 3px solid var(--status-in-treatment);">
+                    <span class="text-3xl font-bold status-in-treatment">${stats.treating}</span>
+                    <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Terapi</p>
+                </div>
+                <div class="pt-2" style="border-top: 3px solid var(--status-completed);">
+                    <span class="text-3xl font-bold status-completed">${stats.completed}</span>
+                    <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Selesai</p>
+                </div>
+            `;
+        }
+        return `
+            <h3 class="text-base font-semibold mb-4 text-center sm:text-left" style="color: var(--text-primary);">Ringkasan Antrian</h3>
+            <div class="grid grid-cols-3 gap-4 text-center">${content}</div>
         `;
-      } else {
-        content = `
-          <div class="pt-2" style="border-top: 3px solid var(--status-waiting);">
-            <span class="text-3xl font-bold status-waiting">${stats.waiting}</span>
-            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Menunggu</p>
-          </div>
-          <div class="pt-2" style="border-top: 3px solid var(--status-in-treatment);">
-            <span class="text-3xl font-bold status-in-treatment">${stats.treating}</span>
-            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Terapi</p>
-          </div>
-          <div class="pt-2" style="border-top: 3px solid var(--status-completed);">
-            <span class="text-3xl font-bold status-completed">${stats.completed}</span>
-            <p class="text-sm tracking-wide font-medium" style="color: var(--text-secondary);">Selesai</p>
-          </div>
-        `;
-      }
-      return `
-        <h3 class="text-base font-semibold mb-4 text-center sm:text-left" style="color: var(--text-primary);">Ringkasan Antrian</h3>
-        <div class="grid grid-cols-3 gap-4 text-center">${content}</div>
-      `;
     }
-
+    
     function createPatientTable(patients) {
-      const sorted = [...patients].sort((a, b) => {
-        const numA = a.waitingNumber ? String(a.waitingNumber) : '';
-        const numB = b.waitingNumber ? String(b.waitingNumber) : '';
-        return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
-      });
+        const sorted = [...patients].sort((a, b) => {
+            const numA = a.waitingNumber ? String(a.waitingNumber) : '';
+            const numB = b.waitingNumber ? String(b.waitingNumber) : '';
+            return numA.localeCompare(numB, undefined, { numeric: true, sensitivity: 'base' });
+        });
 
-      return `
-        <div class="overflow-x-auto">
-          <table class="min-w-full text-left text-xs sm:text-sm">
-            <thead style="color: var(--text-secondary);">
-              <tr class="border-b" style="border-color: var(--border-color);">
-                <th class="p-2 pl-0 font-medium whitespace-nowrap">No.</th>
-                <th class="p-2 font-medium">Nama Pasien</th>
-                <th class="p-2 font-medium">Status</th>
-                <th class="p-2 pr-0 font-medium text-center whitespace-nowrap">Posisi Antrian</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${sorted.map(p => `
-                <tr class="border-b last:border-0" style="border-color: var(--bg-subtle);">
-                  <td class="p-2 pl-0 font-semibold">${sanitize(p.waitingNumber)}</td>
-                  <td class="p-2">${sanitize(p.patientName)}</td>
-                  <td class="p-2 font-semibold status-${p.status}">${translateStatus(p.status)}</td>
-                  <td class="p-2 pr-0 text-center font-semibold">${p.status === STATUS.WAITING ? sanitize(p.queuePosition) : '-'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
+        return `
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-xs sm:text-sm">
+                    <thead style="color: var(--text-secondary);">
+                        <tr class="border-b" style="border-color: var(--border-color);">
+                            <th class="p-2 pl-0 font-medium whitespace-nowrap">No.</th>
+                            <th class="p-2 font-medium">Nama Pasien</th>
+                            <th class="p-2 font-medium">Status</th>
+                            <th class="p-2 pr-0 font-medium text-center whitespace-nowrap">Posisi Antrian</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sorted.map(p => {
+                            // 3. LOGIKA PENANDA DASH (-) DAN AT (@)
+                            const hasDash = p.patientName.includes('-');
+                            const hasAt = p.patientName.includes('@');
+                            
+                            let displayName = p.patientName.replace('-', '').replace('@', '').trim();
+                            
+                            const separator = hasAt ? `
+                                <tr class="break-separator">
+                                    <td colspan="4" class="p-2 py-3">↓ SETELAH ISTIRAHAT ↓</td>
+                                </tr>
+                            ` : '';
+
+                            const rowClass = hasDash ? 'bg-red-600-custom' : '';
+                            const statusClass = hasDash ? 'text-white' : `status-${p.status}`;
+                            const queueClass = hasDash ? 'text-yellow-200-custom' : '';
+
+                            return `
+                            ${separator}
+                            <tr class="border-b ${rowClass}" style="${hasDash ? '' : 'border-color: var(--bg-subtle);'}">
+                                <td class="p-2 pl-0 font-semibold ${hasDash ? 'pl-2' : ''}">${sanitize(p.waitingNumber)}</td>
+                                <td class="p-2">${sanitize(displayName)}</td>
+                                <td class="p-2 font-semibold ${statusClass}">${translateStatus(p.status)}</td>
+                                <td class="p-2 pr-0 text-center font-semibold ${queueClass} ${hasDash ? 'pr-2' : ''}">${p.status === STATUS.WAITING ? sanitize(p.queuePosition) : '-'}</td>
+                            </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
     }
 
+    // --- UTILITAS ---
     function setupDarkMode() {
-      const hour = new Date().getHours();
-      const isNight = hour >= 18 || hour < 6;
-      if (isNight) document.documentElement.classList.add('dark');
+        const hour = new Date().getHours();
+        const isNight = hour >= 18 || hour < 6; 
+        if (isNight) {
+            document.documentElement.classList.add('dark');
+        }
     }
 
     function translateStatus(status) {
-      const map = { 
-        waiting: 'Menunggu', 
-        'in-treatment': 'Terapi', 
-        completed: 'Selesai' 
-      };
-      return map[status] || status;
+        const map = { waiting: 'Menunggu', 'in-treatment': 'Terapi', completed: 'Selesai' };
+        return map[status] || status;
     }
 
     function sanitize(str) {
-      if (!str && str !== 0) return '';
-      const temp = document.createElement('div');
-      temp.textContent = String(str);
-      return temp.innerHTML;
+        if (!str && str !== 0) return '';
+        const temp = document.createElement('div');
+        temp.textContent = String(str);
+        return temp.innerHTML;
     }
   </script>
 </body>
